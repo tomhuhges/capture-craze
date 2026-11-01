@@ -77,6 +77,12 @@ export default function App() {
 
   // Clear pending timeouts when leaving a run.
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
+  // Lock page scrolling / pull-to-refresh while a game is on screen.
+  useEffect(() => {
+    document.body.classList.toggle('no-scroll', screen === 'play')
+    return () => document.body.classList.remove('no-scroll')
+  }, [screen])
+
   function later(fn: () => void, ms: number) {
     timers.current.push(window.setTimeout(fn, ms))
   }
@@ -327,10 +333,10 @@ export default function App() {
       <p className="legend">
         {showDanger ? (
           <>
-            <span className="dot safe" /> safe <span className="dot danger" /> Black can take you there
+            <span className="dot safe" /> safe <span className="dot danger" /> danger · drag or tap to move
           </>
         ) : (
-          'Danger hints off — good luck!'
+          'Drag your piece or tap a square · hints off'
         )}
       </p>
     </main>

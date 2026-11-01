@@ -31,6 +31,14 @@ body {
   background: var(--bg);
 }
 
+body.no-scroll {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
 button {
   font: inherit;
   color: inherit;
@@ -374,6 +382,46 @@ h1 em {
 }
 
 /* ---------- Survival mode ---------- */
+.app.play {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Board is as big as fits without scrolling. */
+.app.play .board-wrap {
+  width: min(100%, calc(100dvh - 230px));
+  margin: 0 auto;
+}
+
+.board {
+  touch-action: none;
+}
+
+.piece.hero.grabbable {
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.piece.hero.lifted {
+  transition: none;
+  cursor: grabbing;
+  z-index: 10;
+}
+
+.piece.hero.lifted span {
+  transform: scale(1.25);
+  filter: drop-shadow(0 8px 6px rgba(0, 0, 0, 0.25));
+}
+
+.board.dragging .sq.move.hover {
+  box-shadow: inset 0 0 0 4px var(--secondary);
+}
+
 .you {
   flex: 1;
   font-weight: 900;

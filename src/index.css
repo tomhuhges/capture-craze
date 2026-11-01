@@ -181,61 +181,6 @@ h1 em {
   gap: 10px;
 }
 
-.timebar {
-  position: relative;
-  flex: 1;
-  height: 22px;
-  background: var(--line);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.timebar .fill {
-  height: 100%;
-  background: var(--secondary);
-  border-radius: 999px;
-  transition: width 1s linear, background 0.3s;
-}
-
-.timebar.low .fill {
-  background: var(--bad);
-}
-
-.timebar.low {
-  animation: pulse 0.6s ease-in-out infinite;
-}
-
-.timebar span {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.zen-label {
-  flex: 1;
-  font-weight: 800;
-  color: var(--muted);
-  text-align: center;
-}
-
-.hearts span {
-  font-size: 22px;
-  margin-left: 2px;
-  transition: color 0.3s, transform 0.3s;
-}
-
-.hearts .on {
-  color: var(--bad);
-}
-
-.hearts .off {
-  color: var(--line);
-  transform: scale(0.85);
-}
-
 .scoreline {
   display: flex;
   justify-content: space-between;
@@ -331,27 +276,6 @@ h1 em {
   background: var(--dark-sq);
 }
 
-.sq.target {
-  cursor: pointer;
-}
-
-.sq.target::after {
-  content: '';
-  position: absolute;
-  inset: 6%;
-  border-radius: 50%;
-  border: 5px solid var(--target);
-}
-
-.sq.target:hover::after {
-  background: var(--target);
-}
-
-.sq.hint::after {
-  border-color: var(--good);
-  animation: pulse 0.7s ease-in-out infinite;
-}
-
 .layer {
   position: absolute;
   inset: 0;
@@ -378,10 +302,6 @@ h1 em {
   text-shadow: 0 3px 0 rgba(0, 0, 0, 0.15);
 }
 
-.piece.black.attackable span {
-  animation: wiggle 1.4s ease-in-out infinite;
-}
-
 .piece.hero {
   z-index: 2;
 }
@@ -391,18 +311,6 @@ h1 em {
   -webkit-text-stroke: 2px var(--primary-dark);
   paint-order: stroke fill;
   text-shadow: 0 4px 0 var(--primary-dark);
-}
-
-.morph {
-  animation: morph 0.35s ease-out;
-}
-
-.poof span {
-  animation: poof 0.4s ease-out forwards;
-}
-
-.board.shake {
-  animation: shake 0.45s;
 }
 
 .banner {
@@ -429,14 +337,6 @@ h1 em {
   background: var(--bad);
   box-shadow: 0 5px 0 #c9324d;
   font-size: 20px;
-}
-
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-  margin-top: 24px;
 }
 
 /* ---------- Game over ---------- */
@@ -473,7 +373,132 @@ h1 em {
   text-transform: uppercase;
 }
 
+/* ---------- Survival mode ---------- */
+.you {
+  flex: 1;
+  font-weight: 900;
+  font-size: 18px;
+  text-align: center;
+}
+
+.mini {
+  font-size: 24px;
+  color: var(--primary);
+}
+
+.icon-btn.active {
+  color: var(--ink);
+}
+
+.score small {
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.turn {
+  font-weight: 800;
+  color: var(--secondary-dark);
+}
+
+.turn.black {
+  color: var(--muted);
+}
+
+.check {
+  font-weight: 900;
+  color: var(--bad);
+  animation: pulse 0.7s ease-in-out infinite;
+}
+
+.sq.last {
+  box-shadow: inset 0 0 0 100px rgba(255, 214, 90, 0.45);
+}
+
+.sq.move {
+  cursor: pointer;
+}
+
+.sq.move::after {
+  content: '';
+  position: absolute;
+  inset: 34%;
+  border-radius: 50%;
+  background: rgba(45, 42, 62, 0.28);
+}
+
+.sq.move.capture::after {
+  inset: 5%;
+  background: none;
+  border: 5px solid rgba(45, 42, 62, 0.3);
+}
+
+.sq.move.safe::after {
+  background: rgba(60, 207, 110, 0.75);
+}
+
+.sq.move.danger::after {
+  background: rgba(255, 79, 109, 0.75);
+}
+
+.sq.move.capture.safe::after {
+  background: none;
+  border-color: rgba(60, 207, 110, 0.9);
+}
+
+.sq.move.capture.danger::after {
+  background: none;
+  border-color: rgba(255, 79, 109, 0.9);
+}
+
+.sq.move:hover::after {
+  transform: scale(1.15);
+}
+
+.spawn span {
+  animation: spawn 0.45s cubic-bezier(0.3, 1.6, 0.6, 1);
+}
+
+.piece.hero.dead span {
+  animation: poof 0.6s ease-out forwards;
+}
+
+.legend {
+  text-align: center;
+  color: var(--muted);
+  font-weight: 700;
+  margin-top: 20px;
+}
+
+.dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin: 0 4px 0 10px;
+  vertical-align: -1px;
+}
+
+.dot.safe {
+  background: var(--good);
+}
+
+.dot.danger {
+  background: var(--bad);
+}
+
 /* ---------- Animations ---------- */
+@keyframes spawn {
+  0% {
+    transform: scale(0) translateY(-40%);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 @keyframes bob {
   50% {
     transform: translateY(-8px) rotate(-4deg);
@@ -486,47 +511,11 @@ h1 em {
   }
 }
 
-@keyframes wiggle {
-  0%,
-  100% {
-    transform: rotate(0);
-  }
-  25% {
-    transform: rotate(-5deg);
-  }
-  75% {
-    transform: rotate(5deg);
-  }
-}
-
-@keyframes morph {
-  0% {
-    transform: scale(0.3) rotate(-30deg);
-  }
-  70% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
 @keyframes poof {
   to {
     transform: scale(1.8);
     opacity: 0;
     filter: blur(3px);
-  }
-}
-
-@keyframes shake {
-  20%,
-  60% {
-    transform: translateX(-10px);
-  }
-  40%,
-  80% {
-    transform: translateX(10px);
   }
 }
 

@@ -1,75 +1,74 @@
 import type { CSSProperties } from 'react'
-import { GLYPHS, type Hero, type PieceType } from '../game/chess'
+import { GLYPHS, SIZE, type Enemy, type Hero, type PieceType } from '../game/chess'
+
+export interface MoveMark {
+  sq: number
+  danger: boolean
+  capture: boolean
+}
 
 interface Props {
-  size: number
   hero: Hero
-  pieces: Record<number, PieceType>
-  targets: number[]
-  hint: number | null
-  shake: boolean
+  heroDead: boolean
+  enemies: Enemy[]
+  moves: MoveMark[]
+  showDanger: boolean
+  lastMove: { from: number; to: number } | null
+  spawned: Set<number>
   poof: { sq: number; type: PieceType; key: number } | null
-  onCapture: (sq: number) => void
+  onMove: (sq: number) => void
   disabled: boolean
 }
 
-function at(sq: number, size: number): CSSProperties {
-  const x = sq % size
-  const y = Math.floor(sq / size)
+function at(sq: number): CSSProperties {
   return {
-    width: `${100 / size}%`,
-    height: `${100 / size}%`,
-    transform: `translate(${x * 100}%, ${y * 100}%)`,
+    width: `${100 / SIZE}%`,
+    height: `${100 / SIZE}%`,
+    transform: `translate(${(sq % SIZE) * 100}%, ${Math.floor(sq / SIZE) * 100}%)`,
   }
 }
 
-export function Board({ size, hero, pieces, targets, hint, shake, poof, onCapture, disabled }: Props) {
-  const squares = Array.from({ length: size * size }, (_, i) => i)
-  const targetSet = new Set(targets)
+export function Board({ hero, heroDead, enemies, moves, showDanger, lastMove, spawned, poof, onMove, disabled }: Props) {
+  const markBySq = new Map(moves.map((m) => [m.sq, m]))
 
   return (
-    <div
-      className={`board ${shake ? 'shake' : ''}`}
-      style={{ '--n': size } as CSSProperties}
-      role="grid"
-      aria-label="Chess board"
-    >
-      {squares.map((sq) => {
-        const x = sq % size
-        const y = Math.floor(sq / size)
-        const dark = (x + y) % 2 === 1
-        const isTarget = targetSet.has(sq)
+    <div className="board" style={{ '--n': SIZE } as CSSProperties} role="grid" aria-label="Chess board">
+      {Array.from({ length: SIZE * SIZE }, (_, sq) => {
+        const dark = ((sq % SIZE) + Math.floor(sq / SIZE)) % 2 === 1
+        const mark = markBySq.get(sq)
+        const cls = [
+          'sq',
+          dark ? 'dark' : 'light',
+          lastMove && (lastMove.from === sq || lastMove.to === sq) ? 'last' : '',
+          mark ? (mark.capture ? 'move capture' : 'move') : '',
+          mark && showDanger ? (mark.danger ? 'danger' : 'safe') : '',
+        ].join(' ')
         return (
           <button
             key={sq}
-            className={`sq ${dark ? 'dark' : 'light'} ${isTarget ? 'target' : ''} ${hint === sq ? 'hint' : ''}`}
-            onClick={() => isTarget && !disabled && onCapture(sq)}
-            disabled={disabled || !isTarget}
-            aria-label={isTarget ? `Capture ${pieces[sq]} ` : undefined}
+            className={cls}
+            onClick={() => mark && !disabled && onMove(sq)}
+            disabled={disabled || !mark}
+            aria-label={mark ? `Move to square ${sq}` : undefined}
           />
         )
       })}
 
       <div className="layer">
-        {Object.entries(pieces).map(([sqStr, type]) => {
-          const sq = Number(sqStr)
-          return (
-            <div key={sq} className={`piece black ${targetSet.has(sq) ? 'attackable' : ''}`} style={at(sq, size)}>
-              <span>{GLYPHS[type]}</span>
-            </div>
-          )
-        })}
+        {enemies.map((e) => (
+          <div key={e.id} className={`piece black ${spawned.has(e.id) ? 'spawn' : ''}`} style={at(e.sq)}>
+            <span key={e.type}>{GLYPHS[e.type]}</span>
+          </div>
+        ))}
 
         {poof && (
-          <div key={poof.key} className="piece black poof" style={at(poof.sq, size)}>
+          <div key={poof.key} className="piece black poof" style={at(poof.sq)}>
             <span>{GLYPHS[poof.type]}</span>
           </div>
         )}
 
-        <div className="piece hero" style={at(hero.sq, size)}>
-          <span key={hero.type} className="morph">
-            {GLYPHS[hero.type]}
-          </span>
+        <div className={`piece hero ${heroDead ? 'dead' : ''}`} style={at(hero.sq)}>
+          <span>{GLYPHS[hero.type]}</span>
         </div>
       </div>
     </div>

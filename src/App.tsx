@@ -1,42 +1,40 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Board } from './components/Board'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Board, type MoveMark } from './components/Board'
 import {
   GLYPHS,
   PIECE_NAMES,
-  generatePuzzle,
-  legalCaptures,
-  piecesForLevel,
-  solve,
+  applyEnemyMove,
+  attackersOf,
+  chooseEnemyMove,
+  heroMoves,
+  isAttacked,
+  newRun,
+  skillFor,
+  spawnEnemies,
+  targetEnemyCount,
+  type Enemy,
   type Hero,
   type PieceType,
-  type Puzzle,
 } from './game/chess'
 import { setMuted, sfx } from './game/sound'
 
-type Mode = 'rush' | 'zen'
 type Screen = 'menu' | 'play' | 'over'
 
-const RUSH_SECONDS = 90
-const SOLVE_TIME_BONUS = 6
-const MAX_HEARTS = 3
 const BEST_KEY = 'capture-craze:best'
+const DANGER_KEY = 'capture-craze:show-danger'
+const BLACK_DELAY = 450
 
-interface Snapshot {
-  hero: Hero
-  pieces: Record<number, PieceType>
-}
-
-function loadBest(): number {
+function load(key: string, fallback: string) {
   try {
-    return Number(localStorage.getItem(BEST_KEY)) || 0
+    return localStorage.getItem(key) ?? fallback
   } catch {
-    return 0
+    return fallback
   }
 }
 
-function saveBest(n: number) {
+function save(key: string, value: string) {
   try {
-    localStorage.setItem(BEST_KEY, String(n))
+    localStorage.setItem(key, value)
   } catch {
     // storage unavailable
   }
@@ -46,195 +44,139 @@ const CHEERS = ['Nice!', 'Great!', 'Awesome!', 'Brilliant!', 'On fire!', 'Unstop
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
-  const [mode, setMode] = useState<Mode>('rush')
   const [muted, setMutedState] = useState(false)
-
-  // run state
-  const [level, setLevel] = useState(0)
-  const [score, setScore] = useState(0)
-  const [combo, setCombo] = useState(1)
-  const [hearts, setHearts] = useState(MAX_HEARTS)
-  const [timeLeft, setTimeLeft] = useState(RUSH_SECONDS)
-  const [solved, setSolved] = useState(0)
-  const [best, setBest] = useState(loadBest)
+  const [showDanger, setShowDanger] = useState(() => load(DANGER_KEY, '1') === '1')
+  const [best, setBest] = useState(() => Number(load(BEST_KEY, '0')) || 0)
   const [newBest, setNewBest] = useState(false)
 
-  // puzzle state
-  const [puzzle, setPuzzle] = useState<Puzzle | null>(null)
   const [hero, setHero] = useState<Hero>({ sq: 0, type: 'N' })
-  const [pieces, setPieces] = useState<Record<number, PieceType>>({})
-  const [history, setHistory] = useState<Snapshot[]>([])
-  const [hint, setHint] = useState<number | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [shake, setShake] = useState(false)
-  const [banner, setBanner] = useState<{ text: string; kind: 'good' | 'bad'; key: number } | null>(null)
+  const [enemies, setEnemies] = useState<Enemy[]>([])
+  const [score, setScore] = useState(0)
+  const [streak, setStreak] = useState(0)
+  const [turns, setTurns] = useState(0)
+  const [blackToMove, setBlackToMove] = useState(false)
+  const [lastMove, setLastMove] = useState<{ from: number; to: number } | null>(null)
+  const [spawned, setSpawned] = useState<Set<number>>(new Set())
   const [poof, setPoof] = useState<{ sq: number; type: PieceType; key: number } | null>(null)
-  const [floaters, setFloaters] = useState<{ id: number; text: string }[]>([])
-  const idRef = useRef(0)
+  const [banner, setBanner] = useState<{ text: string; kind: 'good' | 'bad'; key: number } | null>(null)
+  const [death, setDeath] = useState<{ reason: 'captured' | 'trapped'; by?: PieceType } | null>(null)
+  const keyRef = useRef(0)
+  const timers = useRef<number[]>([])
 
-  const size = puzzle?.size ?? 6
-  const targets = useMemo(() => legalCaptures(hero, pieces, size), [hero, pieces, size])
-  const remaining = Object.keys(pieces).length
+  const moves: MoveMark[] = useMemo(() => {
+    if (screen !== 'play' || blackToMove || death) return []
+    return heroMoves(hero, enemies).map((sq) => ({
+      sq,
+      capture: enemies.some((e) => e.sq === sq),
+      danger: isAttacked(
+        sq,
+        enemies.filter((e) => e.sq !== sq),
+      ),
+    }))
+  }, [hero, enemies, screen, blackToMove, death])
 
-  const loadPuzzle = useCallback((p: Puzzle) => {
-    setPuzzle(p)
-    setHero(p.hero)
-    setPieces(p.pieces)
-    setHistory([])
-    setHint(null)
-    setBusy(false)
-  }, [])
-
-  const nextPuzzle = useCallback(
-    (lvl: number) => loadPuzzle(generatePuzzle(piecesForLevel(lvl))),
-    [loadPuzzle],
-  )
-
-  const resetPuzzle = useCallback(() => {
-    if (puzzle) loadPuzzle(puzzle)
-  }, [puzzle, loadPuzzle])
-
-  function start(m: Mode) {
-    setMode(m)
-    setLevel(0)
-    setScore(0)
-    setCombo(1)
-    setHearts(MAX_HEARTS)
-    setTimeLeft(RUSH_SECONDS)
-    setSolved(0)
-    setNewBest(false)
-    setBanner(null)
-    nextPuzzle(0)
-    setScreen('play')
+  // Clear pending timeouts when leaving a run.
+  useEffect(() => () => timers.current.forEach(clearTimeout), [])
+  function later(fn: () => void, ms: number) {
+    timers.current.push(window.setTimeout(fn, ms))
   }
-
-  const scoreRef = useRef(0)
-  useEffect(() => {
-    scoreRef.current = score
-  }, [score])
-
-  const endRun = useCallback(() => {
-    sfx.over()
-    setScreen('over')
-    const s = scoreRef.current
-    if (s > best) {
-      setBest(s)
-      saveBest(s)
-      setNewBest(true)
-    }
-  }, [best])
-
-  // Rush timer
-  useEffect(() => {
-    if (screen !== 'play' || mode !== 'rush') return
-    const id = setInterval(() => setTimeLeft((t) => Math.max(0, t - 1)), 1000)
-    return () => clearInterval(id)
-  }, [screen, mode])
-
-  useEffect(() => {
-    if (screen !== 'play' || mode !== 'rush') return
-    if (timeLeft === 0) endRun()
-    else if (timeLeft <= 5) sfx.tick()
-  }, [timeLeft, screen, mode, endRun])
 
   function flash(text: string, kind: 'good' | 'bad') {
-    setBanner({ text, kind, key: ++idRef.current })
+    setBanner({ text, kind, key: ++keyRef.current })
   }
 
-  function float(text: string) {
-    const id = ++idRef.current
-    setFloaters((f) => [...f, { id, text }])
-    setTimeout(() => setFloaters((f) => f.filter((x) => x.id !== id)), 900)
+  function start() {
+    timers.current.forEach(clearTimeout)
+    timers.current = []
+    const run = newRun()
+    setHero(run.hero)
+    setEnemies(run.enemies)
+    setSpawned(new Set(run.enemies.map((e) => e.id)))
+    setScore(0)
+    setStreak(0)
+    setTurns(0)
+    setBlackToMove(false)
+    setLastMove(null)
+    setPoof(null)
+    setBanner(null)
+    setDeath(null)
+    setNewBest(false)
+    setScreen('play')
+    flash(`You're a ${PIECE_NAMES[run.hero.type]}!`, 'good')
   }
 
-  function capture(sq: number) {
-    if (busy) return
-    const type = pieces[sq]
-    const next = { ...pieces }
-    delete next[sq]
-    const nextHero = { sq, type }
-
-    setHistory((h) => [...h, { hero, pieces }])
-    setPoof({ sq, type, key: ++idRef.current })
-    setHero(nextHero)
-    setPieces(next)
-    setHint(null)
-    sfx.capture(combo)
-
-    const left = Object.keys(next).length
-    if (left === 0) {
-      onSolved()
-    } else if (legalCaptures(nextHero, next, size).length === 0) {
-      onStuck()
+  function gameOver(reason: 'captured' | 'trapped', finalScore: number, by?: PieceType) {
+    setDeath({ reason, by })
+    sfx.over()
+    flash(reason === 'captured' ? 'Captured!' : 'Trapped!', 'bad')
+    if (finalScore > best) {
+      setBest(finalScore)
+      save(BEST_KEY, String(finalScore))
+      setNewBest(true)
     }
+    later(() => setScreen('over'), 1400)
   }
 
-  function onSolved() {
-    setBusy(true)
-    sfx.solve()
-    // Points are only banked on a solve, so undo/restart can't be farmed.
-    const points = (Object.keys(puzzle?.pieces ?? {}).length * 10 + 50) * combo
-    setScore((s) => s + points)
-    float(`+${points}`)
-    setSolved((n) => n + 1)
-    flash(CHEERS[Math.min(combo - 1, CHEERS.length - 1)], 'good')
-    if (mode === 'rush') {
-      setTimeLeft((t) => t + SOLVE_TIME_BONUS)
-      float(`+${SOLVE_TIME_BONUS}s`)
+  function onMove(to: number) {
+    if (blackToMove || death) return
+    const from = hero.sq
+    const victim = enemies.find((e) => e.sq === to)
+    const movedHero: Hero = { ...hero, sq: to }
+    let board = enemies
+    let newScore = score
+    let newStreak = 0
+
+    if (victim) {
+      board = enemies.filter((e) => e.id !== victim.id)
+      newScore = score + 1
+      newStreak = streak + 1
+      setPoof({ sq: to, type: victim.type, key: ++keyRef.current })
+      sfx.capture(newStreak)
+      if (newStreak >= 2) flash(CHEERS[Math.min(newStreak - 2, CHEERS.length - 1)], 'good')
+
+      // Respawn: at least one new piece, more as the score climbs.
+      const want = Math.max(1, targetEnemyCount(newScore) - board.length)
+      const before = new Set(board.map((e) => e.id))
+      board = spawnEnemies(movedHero, board, want, newScore)
+      setSpawned(new Set(board.filter((e) => !before.has(e.id)).map((e) => e.id)))
+    } else {
+      sfx.step()
+      setSpawned(new Set())
     }
-    setCombo((c) => Math.min(c + 1, 5))
-    const nextLevel = level + 1
-    setLevel(nextLevel)
-    setTimeout(() => nextPuzzle(nextLevel), 900)
-  }
 
-  function onStuck() {
-    setBusy(true)
-    sfx.stuck()
-    setShake(true)
-    setCombo(1)
-    flash('Stuck! No captures left', 'bad')
-    setTimeout(() => setShake(false), 500)
+    setHero(movedHero)
+    setEnemies(board)
+    setScore(newScore)
+    setStreak(newStreak)
+    setTurns((t) => t + 1)
+    setLastMove({ from, to })
+    setBlackToMove(true)
 
-    if (mode === 'rush') {
-      const h = hearts - 1
-      setHearts(h)
-      if (h <= 0) {
-        setTimeout(endRun, 800)
+    // Black replies.
+    later(() => {
+      const m = chooseEnemyMove(movedHero, board, skillFor(newScore))
+      if (!m) {
+        setBlackToMove(false)
         return
       }
-    }
-    setTimeout(resetPuzzle, 900)
-  }
+      const after = applyEnemyMove(board, m)
+      setEnemies(after)
+      setLastMove({ from: m.from, to: m.to })
+      setSpawned(new Set())
 
-  function undo() {
-    if (busy || !history.length) return
-    const prev = history[history.length - 1]
-    setHistory(history.slice(0, -1))
-    setHero(prev.hero)
-    setPieces(prev.pieces)
-    setHint(null)
-  }
-
-  function showHint() {
-    if (busy) return
-    const path = solve(hero, pieces, size)
-    if (path && path.length) {
-      setHint(path[0])
-    } else {
-      // Current position is a dead end; point to the start of the known solution.
-      flash('Dead end — try undoing', 'bad')
-    }
-  }
-
-  function skip() {
-    if (busy) return
-    if (mode === 'rush') {
-      setCombo(1)
-      setTimeLeft((t) => Math.max(0, t - 5))
-      float('-5s')
-    }
-    nextPuzzle(level)
+      if (m.to === movedHero.sq) {
+        const killer = after.find((e) => e.id === m.id)!
+        gameOver('captured', newScore, killer.type)
+        return
+      }
+      sfx.enemy()
+      if (heroMoves(movedHero, after).length === 0) {
+        gameOver('trapped', newScore)
+        return
+      }
+      if (isAttacked(movedHero.sq, after)) sfx.check()
+      setBlackToMove(false)
+    }, BLACK_DELAY)
   }
 
   function toggleMute() {
@@ -242,17 +184,13 @@ export default function App() {
     setMutedState(!muted)
   }
 
-  // Keyboard: U = undo, R = restart, H = hint (zen)
-  useEffect(() => {
-    if (screen !== 'play') return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'u') undo()
-      if (e.key === 'r' && !busy) resetPuzzle()
-      if (e.key === 'h' && mode === 'zen') showHint()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  })
+  function toggleDanger() {
+    save(DANGER_KEY, showDanger ? '0' : '1')
+    setShowDanger(!showDanger)
+  }
+
+  const inCheck = screen === 'play' && !blackToMove && !death && isAttacked(hero.sq, enemies)
+  const threats = inCheck ? attackersOf(hero.sq, enemies) : []
 
   if (screen === 'menu') {
     return (
@@ -263,31 +201,28 @@ export default function App() {
             Capture <em>Craze</em>
           </h1>
         </div>
-        <p className="tagline">Every move is a capture. You become what you eat.</p>
+        <p className="tagline">Eat everything. Don't get eaten.</p>
 
         <ol className="rules">
           <li>
-            <b>Always capture.</b> Your white piece can only move by taking a black piece.
+            <b>You're a random piece.</b> Move it like in chess.
           </li>
           <li>
-            <b>Shapeshift.</b> After a capture, you turn into the piece you took.
+            <b>Capture to score.</b> Every capture spawns new black pieces somewhere on the board.
           </li>
           <li>
-            <b>Clear the board.</b> Plan ahead — if nothing is in reach, you're stuck!
+            <b>Black hits back.</b> After your move, Black moves too — hunting you and setting up forks and
+            skewers. Get captured and it's over.
           </li>
         </ol>
 
         <div className="menu-buttons">
-          <button className="btn primary big" onClick={() => start('rush')}>
-            ⚡ Rush mode
-            <small>{RUSH_SECONDS}s · 3 hearts · combos</small>
-          </button>
-          <button className="btn secondary big" onClick={() => start('zen')}>
-            🧘 Zen mode
-            <small>No timer · hints · undo</small>
+          <button className="btn primary big" onClick={start}>
+            ▶ Play
+            <small>How many can you capture?</small>
           </button>
         </div>
-        {best > 0 && <p className="best">Best rush score: {best}</p>}
+        {best > 0 && <p className="best">Best: {best} captures</p>}
       </main>
     )
   }
@@ -295,16 +230,21 @@ export default function App() {
   if (screen === 'over') {
     return (
       <main className="app menu">
-        <div className="over-emoji">{newBest ? '🏆' : timeLeft === 0 ? '⏰' : '💔'}</div>
-        <h1>{newBest ? 'New best!' : timeLeft === 0 ? "Time's up!" : 'Out of hearts!'}</h1>
+        <div className="over-emoji">{newBest ? '🏆' : death?.reason === 'trapped' ? '🪤' : '💥'}</div>
+        <h1>{newBest ? 'New best!' : 'Game over'}</h1>
+        <p className="tagline">
+          {death?.reason === 'trapped'
+            ? 'Boxed in with nowhere to go.'
+            : `Your ${PIECE_NAMES[hero.type]} was taken by a ${PIECE_NAMES[death?.by ?? 'P']}.`}
+        </p>
         <div className="stats">
           <div>
             <span>{score}</span>
-            <label>Score</label>
+            <label>Captures</label>
           </div>
           <div>
-            <span>{solved}</span>
-            <label>Solved</label>
+            <span>{turns}</span>
+            <label>Moves</label>
           </div>
           <div>
             <span>{best}</span>
@@ -312,7 +252,7 @@ export default function App() {
           </div>
         </div>
         <div className="menu-buttons">
-          <button className="btn primary big" onClick={() => start('rush')}>
+          <button className="btn primary big" onClick={start}>
             Play again
           </button>
           <button className="btn ghost" onClick={() => setScreen('menu')}>
@@ -323,31 +263,25 @@ export default function App() {
     )
   }
 
-  const timePct = Math.min(100, (timeLeft / RUSH_SECONDS) * 100)
-
   return (
     <main className="app play">
       <header className="hud">
-        <button className="icon-btn" onClick={() => (mode === 'rush' ? endRun() : setScreen('menu'))} aria-label="Quit">
+        <button
+          className="icon-btn"
+          onClick={() => {
+            timers.current.forEach(clearTimeout)
+            setScreen('menu')
+          }}
+          aria-label="Quit"
+        >
           ✕
         </button>
-        {mode === 'rush' ? (
-          <div className={`timebar ${timeLeft <= 10 ? 'low' : ''}`}>
-            <div className="fill" style={{ width: `${timePct}%` }} />
-            <span>{timeLeft}s</span>
-          </div>
-        ) : (
-          <div className="zen-label">Zen · Puzzle {level + 1}</div>
-        )}
-        {mode === 'rush' && (
-          <div className="hearts" aria-label={`${hearts} hearts`}>
-            {Array.from({ length: MAX_HEARTS }, (_, i) => (
-              <span key={i} className={i < hearts ? 'on' : 'off'}>
-                ♥
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="you">
+          <span className="mini">{GLYPHS[hero.type]}</span> {PIECE_NAMES[hero.type]}
+        </div>
+        <button className={`icon-btn ${showDanger ? 'active' : ''}`} onClick={toggleDanger} title="Show danger squares">
+          {showDanger ? '👁' : '🙈'}
+        </button>
         <button className="icon-btn" onClick={toggleMute} aria-label="Toggle sound">
           {muted ? '🔇' : '🔊'}
         </button>
@@ -356,33 +290,32 @@ export default function App() {
       <section className="scoreline">
         <div className="score">
           {score}
-          <div className="floaters">
-            {floaters.map((f) => (
-              <span key={f.id}>{f.text}</span>
-            ))}
-          </div>
+          <small> captured</small>
         </div>
-        <div className={`combo c${combo}`}>×{combo} combo</div>
+        <div className={`combo c${Math.min(streak, 5)}`}>{streak >= 2 ? `🔥 ${streak} in a row` : `Best ${best}`}</div>
       </section>
 
       <section className="status">
-        <div className="you">
-          You are a <b>{PIECE_NAMES[hero.type]}</b> <span className="mini">{GLYPHS[hero.type]}</span>
-        </div>
-        <div className="left">{remaining} left</div>
+        <div className={`turn ${blackToMove ? 'black' : ''}`}>{blackToMove ? 'Black is thinking…' : 'Your move'}</div>
+        {inCheck && (
+          <div className="check">
+            ⚠ Under attack by {threats.map((t) => GLYPHS[t.type]).join(' ')}
+          </div>
+        )}
       </section>
 
       <div className="board-wrap">
         <Board
-          size={size}
           hero={hero}
-          pieces={pieces}
-          targets={busy ? [] : targets}
-          hint={hint}
-          shake={shake}
+          heroDead={!!death}
+          enemies={enemies}
+          moves={moves}
+          showDanger={showDanger}
+          lastMove={lastMove}
+          spawned={spawned}
           poof={poof}
-          onCapture={capture}
-          disabled={busy}
+          onMove={onMove}
+          disabled={blackToMove || !!death}
         />
         {banner && (
           <div key={banner.key} className={`banner ${banner.kind}`}>
@@ -391,22 +324,15 @@ export default function App() {
         )}
       </div>
 
-      <footer className="controls">
-        <button className="btn ghost" onClick={undo} disabled={busy || !history.length}>
-          ↶ Undo
-        </button>
-        <button className="btn ghost" onClick={resetPuzzle} disabled={busy}>
-          ⟲ Restart
-        </button>
-        {mode === 'zen' ? (
-          <button className="btn ghost" onClick={showHint} disabled={busy}>
-            💡 Hint
-          </button>
-        ) : null}
-        <button className="btn ghost" onClick={skip} disabled={busy}>
-          ⏭ Skip{mode === 'rush' ? ' (-5s)' : ''}
-        </button>
-      </footer>
+      <p className="legend">
+        {showDanger ? (
+          <>
+            <span className="dot safe" /> safe <span className="dot danger" /> Black can take you there
+          </>
+        ) : (
+          'Danger hints off — good luck!'
+        )}
+      </p>
     </main>
   )
 }

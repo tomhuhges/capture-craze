@@ -29,15 +29,15 @@ export const sfx = {
   capture(combo: number) {
     tone(440 + combo * 60, 0, 0.12, 'triangle')
   },
-  solve() {
-    ;[523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.08, 0.2, 'triangle'))
+  step() {
+    tone(330, 0, 0.06, 'sine', 0.08)
   },
-  stuck() {
-    tone(220, 0, 0.18, 'sawtooth', 0.08)
-    tone(165, 0.12, 0.25, 'sawtooth', 0.08)
+  enemy() {
+    tone(196, 0, 0.08, 'triangle', 0.1)
   },
-  tick() {
-    tone(880, 0, 0.05, 'square', 0.04)
+  check() {
+    tone(660, 0, 0.08, 'square', 0.05)
+    tone(660, 0.12, 0.08, 'square', 0.05)
   },
   over() {
     ;[392, 330, 262].forEach((f, i) => tone(f, i * 0.15, 0.3, 'triangle'))

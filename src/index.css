@@ -303,6 +303,13 @@ h1 em {
 .piece span {
   font-size: 78cqh;
   line-height: 1;
+  font-family: 'Segoe UI Symbol', 'DejaVu Sans', 'Noto Sans Symbols 2', 'Apple Symbols', sans-serif;
+  font-variant-emoji: text;
+}
+
+/* Pawns are the smallest piece — keep them visibly shorter than bishops. */
+.piece span.t-P {
+  font-size: 62cqh;
 }
 
 .piece.black span {

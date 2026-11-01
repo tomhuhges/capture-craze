@@ -111,13 +111,15 @@ export function Board({ hero, heroDead, enemies, moves, showDanger, lastMove, sp
       <div className="layer">
         {enemies.map((e) => (
           <div key={e.id} className={`piece black ${spawned.has(e.id) ? 'spawn' : ''}`} style={at(e.sq)}>
-            <span key={e.type}>{GLYPHS[e.type]}</span>
+            <span key={e.type} className={`t-${e.type}`}>
+              {GLYPHS[e.type]}
+            </span>
           </div>
         ))}
 
         {poof && (
           <div key={poof.key} className="piece black poof" style={at(poof.sq)}>
-            <span>{GLYPHS[poof.type]}</span>
+            <span className={`t-${poof.type}`}>{GLYPHS[poof.type]}</span>
           </div>
         )}
 

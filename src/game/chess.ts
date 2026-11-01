@@ -20,6 +20,16 @@ export const PIECE_NAMES: Record<PieceType, string> = {
   P: 'Pawn',
 }
 
+/** Classic chess piece values — what each capture is worth. */
+export const PIECE_VALUES: Record<PieceType, number> = {
+  P: 1,
+  N: 3,
+  B: 3,
+  R: 5,
+  Q: 9,
+  K: 0,
+}
+
 export const GLYPHS: Record<PieceType, string> = {
   K: '♚',
   Q: '♛',
@@ -146,28 +156,29 @@ export function applyEnemyMove(enemies: Enemy[], m: EnemyMove): Enemy[] {
 interface Outlook {
   /** hero moves that don't land on an attacked square */
   safe: number
-  /** of those, how many capture a piece */
-  safeCaptures: number
+  /** total value of pieces you could take safely */
+  safeCaptureValue: number
 }
 
 function heroOutlook(hero: Hero, enemies: Enemy[]): Outlook {
   let safe = 0
-  let safeCaptures = 0
+  let safeCaptureValue = 0
   for (const to of heroMoves(hero, enemies)) {
-    const rest = enemies.filter((e) => e.sq !== to)
+    const victim = enemies.find((e) => e.sq === to)
+    const rest = victim ? enemies.filter((e) => e !== victim) : enemies
     if (!isAttacked(to, rest)) {
       safe++
-      if (rest.length !== enemies.length) safeCaptures++
+      if (victim) safeCaptureValue += 1 + PIECE_VALUES[victim.type]
     }
   }
-  return { safe, safeCaptures }
+  return { safe, safeCaptureValue }
 }
 
 const dist = (a: number, b: number) => Math.max(Math.abs(fileOf(a) - fileOf(b)), Math.abs(rankOf(a) - rankOf(b)))
 
 /**
  * Black's brain. Captures you if it can; otherwise picks the move that leaves
- * you the fewest safe squares and the fewest free captures — which naturally
+ * you the fewest safe squares and the least free material — which naturally
  * produces forks, skewer-style lines and baited pieces you can't safely take.
  * `skill` (0..1) is the chance Black plays its best move rather than a
  * lazy one; it ramps up with your score so the early game is forgiving.
@@ -190,8 +201,9 @@ export function chooseEnemyMove(hero: Hero, enemies: Enemy[], skill: number): En
   let bestScore = -Infinity
   for (const m of moves) {
     const next = applyEnemyMove(enemies, m)
-    const { safe, safeCaptures } = heroOutlook(hero, next)
-    let score = -safe - 4 * safeCaptures
+    const { safe, safeCaptureValue } = heroOutlook(hero, next)
+    // Hanging a queen hurts Black far more than hanging a pawn.
+    let score = -safe - 1.5 * safeCaptureValue
     if (safe === 0) score += 100 // you're trapped: every move loses
     score -= 0.15 * dist(m.to, hero.sq) // drift towards the hero
     if (m.promoted) score += 2

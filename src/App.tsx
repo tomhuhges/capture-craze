@@ -3,6 +3,7 @@ import { Board, type MoveMark } from './components/Board'
 import {
   GLYPHS,
   PIECE_NAMES,
+  PIECE_VALUES,
   applyEnemyMove,
   attackersOf,
   chooseEnemyMove,
@@ -20,7 +21,7 @@ import { setMuted, sfx } from './game/sound'
 
 type Screen = 'menu' | 'play' | 'over'
 
-const BEST_KEY = 'capture-craze:best'
+const BEST_KEY = 'capture-craze:best-points'
 const DANGER_KEY = 'capture-craze:show-danger'
 const BLACK_DELAY = 450
 
@@ -51,9 +52,10 @@ export default function App() {
 
   const [hero, setHero] = useState<Hero>({ sq: 0, type: 'N' })
   const [enemies, setEnemies] = useState<Enemy[]>([])
-  const [score, setScore] = useState(0)
+  const [score, setScore] = useState(0) // points: sum of captured piece values
+  const [captures, setCaptures] = useState(0) // piece count; drives difficulty
+  const [floaters, setFloaters] = useState<{ id: number; text: string }[]>([])
   const [streak, setStreak] = useState(0)
-  const [turns, setTurns] = useState(0)
   const [blackToMove, setBlackToMove] = useState(false)
   const [lastMove, setLastMove] = useState<{ from: number; to: number } | null>(null)
   const [spawned, setSpawned] = useState<Set<number>>(new Set())
@@ -99,8 +101,9 @@ export default function App() {
     setEnemies(run.enemies)
     setSpawned(new Set(run.enemies.map((e) => e.id)))
     setScore(0)
+    setCaptures(0)
+    setFloaters([])
     setStreak(0)
-    setTurns(0)
     setBlackToMove(false)
     setLastMove(null)
     setPoof(null)
@@ -130,20 +133,26 @@ export default function App() {
     const movedHero: Hero = { ...hero, sq: to }
     let board = enemies
     let newScore = score
+    let newCaptures = captures
     let newStreak = 0
 
     if (victim) {
       board = enemies.filter((e) => e.id !== victim.id)
-      newScore = score + 1
+      const points = PIECE_VALUES[victim.type]
+      newScore = score + points
+      newCaptures = captures + 1
       newStreak = streak + 1
+      const fid = ++keyRef.current
+      setFloaters((f) => [...f, { id: fid, text: `+${points}` }])
+      later(() => setFloaters((f) => f.filter((x) => x.id !== fid)), 900)
       setPoof({ sq: to, type: victim.type, key: ++keyRef.current })
       sfx.capture(newStreak)
       if (newStreak >= 2) flash(CHEERS[Math.min(newStreak - 2, CHEERS.length - 1)], 'good')
 
-      // Respawn: at least one new piece, more as the score climbs.
-      const want = Math.max(1, targetEnemyCount(newScore) - board.length)
+      // Respawn: at least one new piece, more as you capture more.
+      const want = Math.max(1, targetEnemyCount(newCaptures) - board.length)
       const before = new Set(board.map((e) => e.id))
-      board = spawnEnemies(movedHero, board, want, newScore)
+      board = spawnEnemies(movedHero, board, want, newCaptures)
       setSpawned(new Set(board.filter((e) => !before.has(e.id)).map((e) => e.id)))
     } else {
       sfx.step()
@@ -153,14 +162,14 @@ export default function App() {
     setHero(movedHero)
     setEnemies(board)
     setScore(newScore)
+    setCaptures(newCaptures)
     setStreak(newStreak)
-    setTurns((t) => t + 1)
     setLastMove({ from, to })
     setBlackToMove(true)
 
     // Black replies.
     later(() => {
-      const m = chooseEnemyMove(movedHero, board, skillFor(newScore))
+      const m = chooseEnemyMove(movedHero, board, skillFor(newCaptures))
       if (!m) {
         setBlackToMove(false)
         return
@@ -214,7 +223,8 @@ export default function App() {
             <b>You're a queen or a rook.</b> Move it like in chess.
           </li>
           <li>
-            <b>Capture to score.</b> Every capture spawns new black pieces somewhere on the board.
+            <b>Capture to score.</b> Pieces are worth their chess value: pawn 1, knight 3, bishop 3, rook 5,
+            queen 9. Every capture spawns new black pieces somewhere on the board.
           </li>
           <li>
             <b>Black hits back.</b> After your move, Black moves too — hunting you and setting up forks and
@@ -228,7 +238,7 @@ export default function App() {
             <small>How many can you capture?</small>
           </button>
         </div>
-        {best > 0 && <p className="best">Best: {best} captures</p>}
+        {best > 0 && <p className="best">Best: {best} points</p>}
       </main>
     )
   }
@@ -246,11 +256,11 @@ export default function App() {
         <div className="stats">
           <div>
             <span>{score}</span>
-            <label>Captures</label>
+            <label>Points</label>
           </div>
           <div>
-            <span>{turns}</span>
-            <label>Moves</label>
+            <span>{captures}</span>
+            <label>Captures</label>
           </div>
           <div>
             <span>{best}</span>
@@ -296,7 +306,12 @@ export default function App() {
       <section className="scoreline">
         <div className="score">
           {score}
-          <small> captured</small>
+          <small> pts</small>
+          <div className="floaters">
+            {floaters.map((f) => (
+              <span key={f.id}>{f.text}</span>
+            ))}
+          </div>
         </div>
         <div className={`combo c${Math.min(streak, 5)}`}>{streak >= 2 ? `🔥 ${streak} in a row` : `Best ${best}`}</div>
       </section>

@@ -211,7 +211,6 @@ function weightedType(captures: number): PieceType {
     ['B', 3],
     ['R', captures >= 2 ? 2 : 1],
     ['Q', captures >= 6 ? 1.5 : captures >= 3 ? 0.6 : 0],
-    ['K', 0.8],
   ]
   const total = table.reduce((s, [, w]) => s + w, 0)
   let r = Math.random() * total
@@ -265,7 +264,7 @@ export function spawnEnemies(hero: Hero, enemies: Enemy[], count: number, captur
 }
 
 export function newRun(): { hero: Hero; enemies: Enemy[] } {
-  const types: PieceType[] = ['N', 'B', 'R', 'Q', 'K']
+  const types: PieceType[] = ['R', 'Q']
   const type = types[Math.floor(Math.random() * types.length)]
   const sq = sqOf(Math.floor(Math.random() * SIZE), SIZE - 1 - Math.floor(Math.random() * 2))
   const hero = { sq, type }

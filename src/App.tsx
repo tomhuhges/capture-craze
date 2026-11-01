@@ -205,7 +205,7 @@ export default function App() {
 
         <ol className="rules">
           <li>
-            <b>You're a random piece.</b> Move it like in chess.
+            <b>You're a queen or a rook.</b> Move it like in chess.
           </li>
           <li>
             <b>Capture to score.</b> Every capture spawns new black pieces somewhere on the board.

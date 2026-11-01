@@ -1,32 +1,22 @@
-# React + TypeScript + Vite
+# Capture Craze ♞
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A chess survival game built with React + TypeScript + Vite.
 
-Currently, two official plugins are available:
+**Play:** https://tomhuhges.github.io/capture-craze/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Rules
+1. **You're a random piece** (knight, bishop, rook, queen or king). Move it like in chess.
+2. **Capture black pieces to score.** Every capture spawns new black pieces in random spots. They never spawn attacking you directly.
+3. **Black hits back.** After each of your moves, Black makes one move. It hunts you and sets traps by cutting off escape squares, setting up forks and leaving bait you can't safely take. Black gets sharper as your score climbs.
+4. Get captured, or have no legal move, and the run is over.
 
-## React Compiler
+Green/red dots show whether a square is safe (toggle with 👁).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## Dev
+```bash
+npm install
+npm run dev     # http://localhost:5173
+npm run build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Game rules, spawning and Black's AI live in `src/game/chess.ts`. Pushes to this branch or `main` deploy to GitHub Pages via `.github/workflows/deploy.yml`.

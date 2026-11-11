@@ -1,11 +1,11 @@
 // Core rules for Capture Craze (survival mode).
 //
-//  - You are a single white piece, randomly chosen at the start of a run.
+//  - You are a single white queen.
 //  - Move like that chess piece. Capture black pieces to score.
 //  - Every time you capture, new black pieces spawn in random spots.
 //  - After each of your moves, Black makes one move — hunting you, and
 //    setting traps (forks, skewers, cutting off escape squares).
-//  - If you get captured, or have no legal move, the run ends.
+//  - Each run lasts 2 minutes; getting captured or boxed in ends it early.
 
 export type PieceType = 'K' | 'Q' | 'R' | 'B' | 'N' | 'P'
 
@@ -279,8 +279,7 @@ export function spawnEnemies(hero: Hero, enemies: Enemy[], count: number, captur
 }
 
 export function newRun(): { hero: Hero; enemies: Enemy[] } {
-  const types: PieceType[] = ['R', 'Q']
-  const type = types[Math.floor(Math.random() * types.length)]
+  const type: PieceType = 'Q'
   const sq = sqOf(Math.floor(Math.random() * SIZE), SIZE - 1 - Math.floor(Math.random() * 2))
   const hero = { sq, type }
   return { hero, enemies: spawnEnemies(hero, [], targetEnemyCount(0), 0) }

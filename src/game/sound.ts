@@ -39,6 +39,9 @@ export const sfx = {
     tone(660, 0, 0.08, 'square', 0.05)
     tone(660, 0.12, 0.08, 'square', 0.05)
   },
+  tick() {
+    tone(880, 0, 0.05, 'square', 0.04)
+  },
   over() {
     ;[392, 330, 262].forEach((f, i) => tone(f, i * 0.15, 0.3, 'triangle'))
   },

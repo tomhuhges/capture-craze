@@ -5,10 +5,10 @@ A chess survival game built with React + TypeScript + Vite.
 **Play:** https://tomhuhges.github.io/capture-craze/
 
 ## Rules
-1. **You're a random piece** (a queen or a rook). Move it like in chess.
+1. **You're a queen** with **2 minutes** to score as many points as you can.
 2. **Capture black pieces to score.** Each is worth its chess value: pawn 1, knight 3, bishop 3, rook 5, queen 9. Every capture spawns new black pieces (pawns, knights, bishops, rooks or queens — never kings) in random spots. They never spawn attacking you directly.
 3. **Black hits back.** After each of your moves, Black makes one move. It hunts you and sets traps by cutting off escape squares, setting up forks and leaving bait you can't safely take. Black gets sharper as your score climbs.
-4. Get captured, or have no legal move, and the run is over.
+4. Get captured, or have no legal move, and your run ends early.
 
 Green/red dots show whether a square is safe (toggle with 👁).
 

@@ -21,7 +21,8 @@ import { setMuted, sfx } from './game/sound'
 
 type Screen = 'menu' | 'play' | 'over'
 
-const BEST_KEY = 'capture-craze:best-points'
+const BEST_KEY = 'capture-craze:best-2min'
+const GAME_SECONDS = 120
 const DANGER_KEY = 'capture-craze:show-danger'
 const BLACK_DELAY = 450
 
@@ -40,6 +41,8 @@ function save(key: string, value: string) {
     // storage unavailable
   }
 }
+
+const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
 const CHEERS = ['Nice!', 'Great!', 'Awesome!', 'Brilliant!', 'On fire!', 'Unstoppable!']
 
@@ -61,7 +64,12 @@ export default function App() {
   const [spawned, setSpawned] = useState<Set<number>>(new Set())
   const [poof, setPoof] = useState<{ sq: number; type: PieceType; key: number } | null>(null)
   const [banner, setBanner] = useState<{ text: string; kind: 'good' | 'bad'; key: number } | null>(null)
-  const [death, setDeath] = useState<{ reason: 'captured' | 'trapped'; by?: PieceType } | null>(null)
+  type EndReason = 'captured' | 'trapped' | 'time'
+  const [death, setDeath] = useState<{ reason: EndReason; by?: PieceType } | null>(null)
+  const [timeLeft, setTimeLeft] = useState(GAME_SECONDS)
+  const endsAt = useRef(0)
+  const scoreRef = useRef(0)
+  scoreRef.current = score
   const keyRef = useRef(0)
   const timers = useRef<number[]>([])
 
@@ -110,14 +118,20 @@ export default function App() {
     setBanner(null)
     setDeath(null)
     setNewBest(false)
+    setTimeLeft(GAME_SECONDS)
+    endsAt.current = Date.now() + GAME_SECONDS * 1000
     setScreen('play')
-    flash(`You're a ${PIECE_NAMES[run.hero.type]}!`, 'good')
+    flash('2 minutes — go!', 'good')
   }
 
-  function gameOver(reason: 'captured' | 'trapped', finalScore: number, by?: PieceType) {
+  function gameOver(reason: EndReason, finalScore: number, by?: PieceType) {
+    // Cancel anything pending (e.g. Black's reply when the clock hits zero).
+    timers.current.forEach(clearTimeout)
+    timers.current = []
     setDeath({ reason, by })
+    setBlackToMove(false)
     sfx.over()
-    flash(reason === 'captured' ? 'Captured!' : 'Trapped!', 'bad')
+    flash(reason === 'captured' ? 'Captured!' : reason === 'trapped' ? 'Trapped!' : "Time's up!", reason === 'time' ? 'good' : 'bad')
     if (finalScore > best) {
       setBest(finalScore)
       save(BEST_KEY, String(finalScore))
@@ -125,6 +139,18 @@ export default function App() {
     }
     later(() => setScreen('over'), 1400)
   }
+
+  // 2-minute game clock. Runs in real time, including while Black thinks.
+  useEffect(() => {
+    if (screen !== 'play' || death) return
+    const id = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil((endsAt.current - Date.now()) / 1000))
+      setTimeLeft(left)
+      if (left === 0) gameOver('time', scoreRef.current)
+      else if (left <= 5) sfx.tick()
+    }, 250)
+    return () => clearInterval(id)
+  })
 
   function onMove(to: number) {
     if (blackToMove || death) return
@@ -220,7 +246,7 @@ export default function App() {
 
         <ol className="rules">
           <li>
-            <b>You're a queen or a rook.</b> Move it like in chess.
+            <b>You're a queen.</b> You've got 2 minutes to score as many points as you can.
           </li>
           <li>
             <b>Capture to score.</b> Pieces are worth their chess value: pawn 1, knight 3, bishop 3, rook 5,
@@ -228,14 +254,14 @@ export default function App() {
           </li>
           <li>
             <b>Black hits back.</b> After your move, Black moves too — hunting you and setting up forks and
-            skewers. Get captured and it's over.
+            skewers. Get captured and your run ends early.
           </li>
         </ol>
 
         <div className="menu-buttons">
           <button className="btn primary big" onClick={start}>
             ▶ Play
-            <small>How many can you capture?</small>
+            <small>2-minute run</small>
           </button>
         </div>
         {best > 0 && <p className="best">Best: {best} points</p>}
@@ -246,12 +272,16 @@ export default function App() {
   if (screen === 'over') {
     return (
       <main className="app menu">
-        <div className="over-emoji">{newBest ? '🏆' : death?.reason === 'trapped' ? '🪤' : '💥'}</div>
-        <h1>{newBest ? 'New best!' : 'Game over'}</h1>
+        <div className="over-emoji">
+          {newBest ? '🏆' : death?.reason === 'time' ? '⏰' : death?.reason === 'trapped' ? '🪤' : '💥'}
+        </div>
+        <h1>{newBest ? 'New best!' : death?.reason === 'time' ? "Time's up!" : 'Game over'}</h1>
         <p className="tagline">
-          {death?.reason === 'trapped'
-            ? 'Boxed in with nowhere to go.'
-            : `Your ${PIECE_NAMES[hero.type]} was taken by a ${PIECE_NAMES[death?.by ?? 'P']}.`}
+          {death?.reason === 'time'
+            ? 'You survived the full 2 minutes.'
+            : death?.reason === 'trapped'
+              ? 'Boxed in with nowhere to go.'
+              : `Your ${PIECE_NAMES[hero.type]} was taken by a ${PIECE_NAMES[death?.by ?? 'P']} with ${fmt(timeLeft)} left.`}
         </p>
         <div className="stats">
           <div>
@@ -292,8 +322,11 @@ export default function App() {
         >
           ✕
         </button>
-        <div className="you">
-          <span className="mini">{GLYPHS[hero.type]}</span> {PIECE_NAMES[hero.type]}
+        <div className={`timebar ${timeLeft <= 10 ? 'low' : ''}`}>
+          <div className="fill" style={{ width: `${(timeLeft / GAME_SECONDS) * 100}%` }} />
+          <span>
+            <span className="mini">{GLYPHS[hero.type]}</span> {fmt(timeLeft)}
+          </span>
         </div>
         <button className={`icon-btn ${showDanger ? 'active' : ''}`} onClick={toggleDanger} title="Show danger squares">
           {showDanger ? '👁' : '🙈'}

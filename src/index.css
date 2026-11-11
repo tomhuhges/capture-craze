@@ -389,6 +389,47 @@ h1 em {
 }
 
 /* ---------- Survival mode ---------- */
+.timebar {
+  position: relative;
+  flex: 1;
+  height: 28px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.timebar .fill {
+  height: 100%;
+  background: var(--secondary);
+  border-radius: 999px;
+  transition: width 0.25s linear, background 0.3s;
+}
+
+.timebar > span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 900;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.timebar .mini {
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.timebar.low .fill {
+  background: var(--bad);
+}
+
+.timebar.low {
+  animation: pulse 0.6s ease-in-out infinite;
+}
+
 .app.play {
   height: 100dvh;
   min-height: 0;

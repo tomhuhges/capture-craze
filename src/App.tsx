@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Board, type MoveMark } from './components/Board'
 import {
   GLYPHS,
@@ -92,11 +92,6 @@ export default function App() {
 
   // Clear pending timeouts when leaving a run.
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
-  // Lock page scrolling / pull-to-refresh while a game is on screen.
-  useEffect(() => {
-    document.body.classList.toggle('no-scroll', screen === 'play')
-    return () => document.body.classList.remove('no-scroll')
-  }, [screen])
 
   function later(fn: () => void, ms: number) {
     timers.current.push(window.setTimeout(fn, ms))
@@ -270,13 +265,25 @@ export default function App() {
 
   if (screen === 'menu') {
     return (
-      <main className="app menu">
-        <div className="logo">
-          <span className="logo-piece">♞</span>
-          <h1>
-            Capture <em>Craze</em>
-          </h1>
-        </div>
+      <Shell
+        className="menu"
+        header={
+          <div className="logo">
+            <span className="logo-piece">♞</span>
+            <h1>
+              Capture <em>Craze</em>
+            </h1>
+          </div>
+        }
+        footer={
+          <div className="menu-buttons">
+            <button className="btn primary big" onClick={start}>
+              ▶ Play
+              <small>2-minute run</small>
+            </button>
+          </div>
+        }
+      >
         <ul className="rules">
           <li>
             <b>{GLYPHS.Q} You're a queen.</b> 2 minutes.
@@ -296,25 +303,28 @@ export default function App() {
             <b>Get captured:</b> −9 and respawn.
           </li>
         </ul>
-
-        <div className="menu-buttons">
-          <button className="btn primary big" onClick={start}>
-            ▶ Play
-            <small>2-minute run</small>
-          </button>
-        </div>
         {best > 0 && <p className="best">Best: {best} points</p>}
-      </main>
+      </Shell>
     )
   }
 
   if (screen === 'over') {
     return (
-      <main className="app menu">
-        <div className="over-emoji">
-          {newBest ? '🏆' : '⏰'}
-        </div>
-        <h1>{newBest ? 'New best!' : "Time's up!"}</h1>
+      <Shell
+        className="menu"
+        header={<h1>{newBest ? 'New best!' : "Time's up!"}</h1>}
+        footer={
+          <div className="menu-buttons row">
+            <button className="btn ghost" onClick={() => setScreen('menu')}>
+              Menu
+            </button>
+            <button className="btn primary big" onClick={start}>
+              Play again
+            </button>
+          </div>
+        }
+      >
+        <div className="over-emoji">{newBest ? '🏆' : '⏰'}</div>
         <p className="tagline">
           {timesTaken === 0
             ? 'Flawless — never got captured!'
@@ -327,7 +337,7 @@ export default function App() {
         </div>
         <div className="stats">
           <div>
-            <span className="pos">+{score + pointsLost}</span>
+            <span className={score + pointsLost ? 'pos' : ''}>{score + pointsLost ? `+${score + pointsLost}` : 0}</span>
             <label>Points captured</label>
           </div>
           <div>
@@ -335,49 +345,55 @@ export default function App() {
             <label>Pieces captured</label>
           </div>
           <div>
-            <span className="neg">−{pointsLost}</span>
+            <span className={pointsLost ? 'neg' : ''}>{pointsLost ? `−${pointsLost}` : 0}</span>
             <label>Points lost</label>
           </div>
         </div>
-        <div className="menu-buttons">
-          <button className="btn primary big" onClick={start}>
-            Play again
-          </button>
-          <button className="btn ghost" onClick={() => setScreen('menu')}>
-            Menu
-          </button>
-        </div>
-      </main>
+      </Shell>
     )
   }
 
   return (
-    <main className="app play">
-      <header className="hud">
-        <button
-          className="icon-btn"
-          onClick={() => {
-            timers.current.forEach(clearTimeout)
-            setScreen('menu')
-          }}
-          aria-label="Quit"
-        >
-          ✕
-        </button>
-        <div className={`timebar ${timeLeft <= 10 ? 'low' : ''}`}>
-          <div className="fill" style={{ width: `${(timeLeft / GAME_SECONDS) * 100}%` }} />
-          <span>
-            <span className="mini">{GLYPHS[hero.type]}</span> {fmt(timeLeft)}
-          </span>
+    <Shell
+      className="play"
+      header={
+        <div className="hud">
+          <button
+            className="icon-btn"
+            onClick={() => {
+              timers.current.forEach(clearTimeout)
+              setScreen('menu')
+            }}
+            aria-label="Quit"
+          >
+            ✕
+          </button>
+          <div className={`timebar ${timeLeft <= 10 ? 'low' : ''}`}>
+            <div className="fill" style={{ width: `${(timeLeft / GAME_SECONDS) * 100}%` }} />
+            <span>
+              <span className="mini">{GLYPHS[hero.type]}</span> {fmt(timeLeft)}
+            </span>
+          </div>
+          <button className={`icon-btn ${showDanger ? 'active' : ''}`} onClick={toggleDanger} title="Show danger squares">
+            {showDanger ? '👁' : '🙈'}
+          </button>
+          <button className="icon-btn" onClick={toggleMute} aria-label="Toggle sound">
+            {muted ? '🔇' : '🔊'}
+          </button>
         </div>
-        <button className={`icon-btn ${showDanger ? 'active' : ''}`} onClick={toggleDanger} title="Show danger squares">
-          {showDanger ? '👁' : '🙈'}
-        </button>
-        <button className="icon-btn" onClick={toggleMute} aria-label="Toggle sound">
-          {muted ? '🔇' : '🔊'}
-        </button>
-      </header>
-
+      }
+      footer={
+        <p className="legend">
+          {showDanger ? (
+            <>
+              <span className="dot safe" /> safe <span className="dot danger" /> danger · drag or tap to move
+            </>
+          ) : (
+            'Drag your piece or tap a square · hints off'
+          )}
+        </p>
+      }
+    >
       <section className="scoreline">
         <div className="score">
           {score}
@@ -394,12 +410,10 @@ export default function App() {
       </section>
 
       <section className="status">
-        <div className={`turn ${blackToMove ? 'black' : ''}`}>{heroDown ? 'Respawning…' : blackToMove ? 'Black is thinking…' : 'Your move'}</div>
-        {inCheck && (
-          <div className="check">
-            ⚠ Under attack by {threats.map((t) => GLYPHS[t.type]).join(' ')}
-          </div>
-        )}
+        <div className={`turn ${blackToMove ? 'black' : ''}`}>
+          {heroDown ? 'Respawning…' : blackToMove ? 'Black is thinking…' : 'Your move'}
+        </div>
+        {inCheck && <div className="check">⚠ Under attack by {threats.map((t) => GLYPHS[t.type]).join(' ')}</div>}
       </section>
 
       <div className="board-wrap">
@@ -422,16 +436,29 @@ export default function App() {
           </div>
         )}
       </div>
+    </Shell>
+  )
+}
 
-      <p className="legend">
-        {showDanger ? (
-          <>
-            <span className="dot safe" /> safe <span className="dot danger" /> danger · drag or tap to move
-          </>
-        ) : (
-          'Drag your piece or tap a square · hints off'
-        )}
-      </p>
+/** Header pinned to the top, footer pinned to the bottom, middle scrolls. */
+function Shell({
+  className,
+  header,
+  footer,
+  children,
+}: {
+  className: string
+  header: ReactNode
+  footer: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <main className={`app ${className}`}>
+      <header className="app-header">{header}</header>
+      <div className="app-body">
+        <div className="app-body-inner">{children}</div>
+      </div>
+      <footer className="app-footer">{footer}</footer>
     </main>
   )
 }

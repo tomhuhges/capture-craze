@@ -154,7 +154,9 @@ export function enemyMoves(enemies: Enemy[], heroSq: number): EnemyMove[] {
 }
 
 export function applyEnemyMove(enemies: Enemy[], m: EnemyMove): Enemy[] {
-  return enemies.map((e) => (e.id === m.id ? { ...e, sq: m.to, type: m.promoted ? 'Q' : e.type } : e))
+  // Black may only have one queen at a time — a pawn promotes to a rook if a queen is already out.
+  const promoteTo: PieceType = enemies.some((e) => e.type === 'Q') ? 'R' : 'Q'
+  return enemies.map((e) => (e.id === m.id ? { ...e, sq: m.to, type: m.promoted ? promoteTo : e.type } : e))
 }
 
 interface Outlook {
@@ -220,13 +222,16 @@ export function chooseEnemyMove(hero: Hero, enemies: Enemy[], skill: number): En
   return best
 }
 
-function weightedType(captures: number): PieceType {
+/** Max black queens on the board at once — more than one is brutal for a lone queen. */
+export const MAX_ENEMY_QUEENS = 1
+
+function weightedType(captures: number, allowQueen: boolean): PieceType {
   const table: [PieceType, number][] = [
     ['P', 5],
     ['N', 3],
     ['B', 3],
     ['R', captures >= 2 ? 2 : 1],
-    ['Q', captures >= 6 ? 1.5 : captures >= 3 ? 0.6 : 0],
+    ['Q', !allowQueen ? 0 : captures >= 6 ? 1.5 : captures >= 3 ? 0.6 : 0],
   ]
   const total = table.reduce((s, [, w]) => s + w, 0)
   let r = Math.random() * total
@@ -256,7 +261,8 @@ let nextId = 1
 export function spawnEnemies(hero: Hero, enemies: Enemy[], count: number, captures: number): Enemy[] {
   let out = enemies
   for (let n = 0; n < count; n++) {
-    const type = weightedType(captures)
+    const queens = out.filter((e) => e.type === 'Q').length
+    const type = weightedType(captures, queens < MAX_ENEMY_QUEENS)
     let fallback: Enemy | null = null
     let placed = false
     for (let attempt = 0; attempt < 60; attempt++) {

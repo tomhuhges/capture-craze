@@ -471,6 +471,11 @@ h1 em {
   color: var(--primary);
 }
 
+.final-score span.negative,
+.score.negative {
+  color: var(--bad);
+}
+
 .final-score small {
   color: var(--muted);
   font-weight: 800;

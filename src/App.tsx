@@ -45,6 +45,9 @@ function save(key: string, value: string) {
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
+/** Uses a proper minus sign for negative scores. */
+const fmtScore = (n: number) => (n < 0 ? `−${-n}` : String(n))
+
 const CHEERS = ['Nice!', 'Great!', 'Awesome!', 'Brilliant!', 'On fire!', 'Unstoppable!']
 
 export default function App() {
@@ -136,13 +139,14 @@ export default function App() {
 
   /** Black took you: lose points, then pop back in somewhere random. */
   function heroTaken(board: Enemy[], scoreBefore: number, reason: 'captured' | 'trapped') {
-    const lost = Math.min(CAPTURE_PENALTY, scoreBefore)
+    // The score can go negative — every capture costs the full penalty.
+    const lost = CAPTURE_PENALTY
     setScore(scoreBefore - lost)
     setStreak(0)
     setTimesTaken((n) => n + 1)
     setPointsLost((n) => n + lost)
     setHeroDown(true)
-    if (lost > 0) floatText(`-${lost}`)
+    floatText(`−${lost}`)
     flash(`${reason === 'captured' ? 'Captured!' : 'Trapped!'} −${CAPTURE_PENALTY}`, 'bad')
     sfx.over()
     later(() => {
@@ -334,7 +338,7 @@ export default function App() {
         </p>
         <div className="final-score">
           <label>Score</label>
-          <span>{score}</span>
+          <span className={score < 0 ? 'negative' : ''}>{fmtScore(score)}</span>
           <small>Best {best}</small>
         </div>
         <div className="stats">
@@ -397,12 +401,12 @@ export default function App() {
       }
     >
       <section className="scoreline">
-        <div className="score">
-          {score}
+        <div className={`score ${score < 0 ? 'negative' : ''}`}>
+          {fmtScore(score)}
           <small> pts</small>
           <div className="floaters">
             {floaters.map((f) => (
-              <span key={f.id} className={f.text.startsWith('-') ? 'neg' : ''}>
+              <span key={f.id} className={f.text.startsWith("−") ? "neg" : ""}>
                 {f.text}
               </span>
             ))}

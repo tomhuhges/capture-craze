@@ -98,9 +98,18 @@ h1 em {
   background: var(--card);
   border: 2px solid var(--line);
   border-radius: 20px;
-  padding: 16px 16px 16px 40px;
-  margin: 12px 0;
+  padding: 14px 18px;
+  margin: 8px 0;
   line-height: 1.5;
+  list-style: none;
+  width: 100%;
+  max-width: 340px;
+}
+
+.rules .values {
+  display: inline-flex;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .rules li + li {
@@ -707,5 +716,20 @@ h1 em {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Short phones (e.g. iPhone SE): shrink the start-page logo so it fits without scrolling. */
+@media (max-height: 620px) {
+  .logo-piece {
+    font-size: 60px;
+  }
+
+  h1 {
+    font-size: 34px;
+  }
+
+  .menu {
+    gap: 8px;
   }
 }

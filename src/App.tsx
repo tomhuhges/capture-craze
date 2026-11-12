@@ -277,21 +277,25 @@ export default function App() {
             Capture <em>Craze</em>
           </h1>
         </div>
-        <p className="tagline">Eat everything. Don't get eaten.</p>
-
-        <ol className="rules">
+        <ul className="rules">
           <li>
-            <b>You're a queen.</b> You've got 2 minutes to score as many points as you can.
+            <b>{GLYPHS.Q} You're a queen.</b> 2 minutes.
           </li>
           <li>
-            <b>Capture to score.</b> Pieces are worth their chess value: pawn 1, knight 3, bishop 3, rook 5,
-            queen 9. Every capture spawns new black pieces somewhere on the board.
+            <b>Capture for points:</b>{' '}
+            <span className="values">
+              {(['P', 'N', 'B', 'R', 'Q'] as const).map((t) => (
+                <span key={t}>
+                  {GLYPHS[t]}
+                  {PIECE_VALUES[t]}
+                </span>
+              ))}
+            </span>
           </li>
           <li>
-            <b>Black hits back.</b> After your move, Black moves too — hunting you and setting up forks and
-            skewers. Get captured and you lose 9 points and respawn somewhere random.
+            <b>Get captured:</b> −9 and respawn.
           </li>
-        </ol>
+        </ul>
 
         <div className="menu-buttons">
           <button className="btn primary big" onClick={start}>

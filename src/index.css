@@ -636,6 +636,10 @@ h1 em {
   }
 }
 
+.floaters span.neg {
+  color: var(--bad);
+}
+
 @keyframes floatUp {
   to {
     transform: translateY(-30px);

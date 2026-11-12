@@ -10,6 +10,8 @@ export interface MoveMark {
 interface Props {
   hero: Hero
   heroDead: boolean
+  /** bumps on respawn so the hero pops in fresh instead of sliding across */
+  heroKey: number
   enemies: Enemy[]
   moves: MoveMark[]
   showDanger: boolean
@@ -28,7 +30,7 @@ function at(sq: number): CSSProperties {
   }
 }
 
-export function Board({ hero, heroDead, enemies, moves, showDanger, lastMove, spawned, poof, onMove, disabled }: Props) {
+export function Board({ hero, heroDead, heroKey, enemies, moves, showDanger, lastMove, spawned, poof, onMove, disabled }: Props) {
   const markBySq = new Map(moves.map((m) => [m.sq, m]))
   const boardRef = useRef<HTMLDivElement>(null)
   // Pointer position (px, relative to the board) while the hero is being dragged.
@@ -124,7 +126,8 @@ export function Board({ hero, heroDead, enemies, moves, showDanger, lastMove, sp
         )}
 
         <div
-          className={`piece hero ${heroDead ? 'dead' : ''} ${drag ? 'lifted' : ''} ${disabled ? '' : 'grabbable'}`}
+          key={`hero-${heroKey}`}
+          className={`piece hero ${heroKey > 0 ? 'spawn' : ''} ${heroDead ? 'dead' : ''} ${drag ? 'lifted' : ''} ${disabled ? '' : 'grabbable'}`}
           style={heroStyle}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

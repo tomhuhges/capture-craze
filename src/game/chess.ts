@@ -5,7 +5,8 @@
 //  - Every time you capture, new black pieces spawn in random spots.
 //  - After each of your moves, Black makes one move — hunting you, and
 //    setting traps (forks, skewers, cutting off escape squares).
-//  - Each run lasts 2 minutes; getting captured or boxed in ends it early.
+//  - Each run lasts 2 minutes. Get captured (or boxed in) and you lose 9 points
+//    and respawn somewhere random.
 
 export type PieceType = 'K' | 'Q' | 'R' | 'B' | 'N' | 'P'
 
@@ -276,6 +277,23 @@ export function spawnEnemies(hero: Hero, enemies: Enemy[], count: number, captur
     if (!placed && fallback) out = [...out, fallback]
   }
   return out
+}
+
+/** Penalty for getting captured. */
+export const CAPTURE_PENALTY = 9
+
+/**
+ * Drops the hero back on a random square after being captured: empty, not
+ * attacked, not right next to an enemy, and with at least one safe move.
+ */
+export function respawnHero(type: PieceType, enemies: Enemy[]): Hero {
+  const empty = Array.from({ length: SIZE * SIZE }, (_, i) => i).filter((sq) => !enemies.some((e) => e.sq === sq))
+  const shuffled = empty.sort(() => Math.random() - 0.5)
+  const ok = (sq: number, strict: boolean) =>
+    !isAttacked(sq, enemies) &&
+    (!strict || (enemies.every((e) => dist(e.sq, sq) >= 2) && heroOutlook({ sq, type }, enemies).safe > 0))
+  const sq = shuffled.find((s) => ok(s, true)) ?? shuffled.find((s) => ok(s, false)) ?? shuffled[0]
+  return { sq, type }
 }
 
 export function newRun(): { hero: Hero; enemies: Enemy[] } {

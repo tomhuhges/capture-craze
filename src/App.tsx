@@ -2,14 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Board, type MoveMark } from './components/Board'
 import {
   GLYPHS,
-  PIECE_NAMES,
   PIECE_VALUES,
+  CAPTURE_PENALTY,
   applyEnemyMove,
   attackersOf,
   chooseEnemyMove,
   heroMoves,
   isAttacked,
   newRun,
+  respawnHero,
   skillFor,
   spawnEnemies,
   targetEnemyCount,
@@ -64,8 +65,11 @@ export default function App() {
   const [spawned, setSpawned] = useState<Set<number>>(new Set())
   const [poof, setPoof] = useState<{ sq: number; type: PieceType; key: number } | null>(null)
   const [banner, setBanner] = useState<{ text: string; kind: 'good' | 'bad'; key: number } | null>(null)
-  type EndReason = 'captured' | 'trapped' | 'time'
-  const [death, setDeath] = useState<{ reason: EndReason; by?: PieceType } | null>(null)
+  type EndReason = 'time'
+  const [death, setDeath] = useState<{ reason: EndReason } | null>(null)
+  const [heroDown, setHeroDown] = useState(false) // captured, waiting to respawn
+  const [heroKey, setHeroKey] = useState(0)
+  const [timesTaken, setTimesTaken] = useState(0)
   const [timeLeft, setTimeLeft] = useState(GAME_SECONDS)
   const endsAt = useRef(0)
   const scoreRef = useRef(0)
@@ -74,7 +78,7 @@ export default function App() {
   const timers = useRef<number[]>([])
 
   const moves: MoveMark[] = useMemo(() => {
-    if (screen !== 'play' || blackToMove || death) return []
+    if (screen !== 'play' || blackToMove || death || heroDown) return []
     return heroMoves(hero, enemies).map((sq) => ({
       sq,
       capture: enemies.some((e) => e.sq === sq),
@@ -83,7 +87,7 @@ export default function App() {
         enemies.filter((e) => e.sq !== sq),
       ),
     }))
-  }, [hero, enemies, screen, blackToMove, death])
+  }, [hero, enemies, screen, blackToMove, death, heroDown])
 
   // Clear pending timeouts when leaving a run.
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
@@ -117,6 +121,9 @@ export default function App() {
     setPoof(null)
     setBanner(null)
     setDeath(null)
+    setHeroDown(false)
+    setHeroKey(0)
+    setTimesTaken(0)
     setNewBest(false)
     setTimeLeft(GAME_SECONDS)
     endsAt.current = Date.now() + GAME_SECONDS * 1000
@@ -124,14 +131,39 @@ export default function App() {
     flash('2 minutes — go!', 'good')
   }
 
-  function gameOver(reason: EndReason, finalScore: number, by?: PieceType) {
+  function floatText(text: string) {
+    const fid = ++keyRef.current
+    setFloaters((f) => [...f, { id: fid, text }])
+    later(() => setFloaters((f) => f.filter((x) => x.id !== fid)), 900)
+  }
+
+  /** Black took you: lose points, then pop back in somewhere random. */
+  function heroTaken(board: Enemy[], scoreBefore: number, reason: 'captured' | 'trapped') {
+    const lost = Math.min(CAPTURE_PENALTY, scoreBefore)
+    setScore(scoreBefore - lost)
+    setStreak(0)
+    setTimesTaken((n) => n + 1)
+    setHeroDown(true)
+    if (lost > 0) floatText(`-${lost}`)
+    flash(`${reason === 'captured' ? 'Captured!' : 'Trapped!'} −${CAPTURE_PENALTY}`, 'bad')
+    sfx.over()
+    later(() => {
+      setHero(respawnHero('Q', board))
+      setHeroKey((k) => k + 1)
+      setHeroDown(false)
+      setBlackToMove(false)
+    }, 900)
+  }
+
+  function gameOver(reason: EndReason, finalScore: number) {
     // Cancel anything pending (e.g. Black's reply when the clock hits zero).
     timers.current.forEach(clearTimeout)
     timers.current = []
-    setDeath({ reason, by })
+    setDeath({ reason })
     setBlackToMove(false)
+    setHeroDown(false)
     sfx.over()
-    flash(reason === 'captured' ? 'Captured!' : reason === 'trapped' ? 'Trapped!' : "Time's up!", reason === 'time' ? 'good' : 'bad')
+    flash("Time's up!", 'good')
     if (finalScore > best) {
       setBest(finalScore)
       save(BEST_KEY, String(finalScore))
@@ -153,7 +185,7 @@ export default function App() {
   })
 
   function onMove(to: number) {
-    if (blackToMove || death) return
+    if (blackToMove || death || heroDown) return
     const from = hero.sq
     const victim = enemies.find((e) => e.sq === to)
     const movedHero: Hero = { ...hero, sq: to }
@@ -168,9 +200,7 @@ export default function App() {
       newScore = score + points
       newCaptures = captures + 1
       newStreak = streak + 1
-      const fid = ++keyRef.current
-      setFloaters((f) => [...f, { id: fid, text: `+${points}` }])
-      later(() => setFloaters((f) => f.filter((x) => x.id !== fid)), 900)
+      floatText(`+${points}`)
       setPoof({ sq: to, type: victim.type, key: ++keyRef.current })
       sfx.capture(newStreak)
       if (newStreak >= 2) flash(CHEERS[Math.min(newStreak - 2, CHEERS.length - 1)], 'good')
@@ -206,13 +236,12 @@ export default function App() {
       setSpawned(new Set())
 
       if (m.to === movedHero.sq) {
-        const killer = after.find((e) => e.id === m.id)!
-        gameOver('captured', newScore, killer.type)
+        heroTaken(after, newScore, 'captured')
         return
       }
       sfx.enemy()
       if (heroMoves(movedHero, after).length === 0) {
-        gameOver('trapped', newScore)
+        heroTaken(after, newScore, 'trapped')
         return
       }
       if (isAttacked(movedHero.sq, after)) sfx.check()
@@ -230,7 +259,7 @@ export default function App() {
     setShowDanger(!showDanger)
   }
 
-  const inCheck = screen === 'play' && !blackToMove && !death && isAttacked(hero.sq, enemies)
+  const inCheck = screen === 'play' && !blackToMove && !death && !heroDown && isAttacked(hero.sq, enemies)
   const threats = inCheck ? attackersOf(hero.sq, enemies) : []
 
   if (screen === 'menu') {
@@ -254,7 +283,7 @@ export default function App() {
           </li>
           <li>
             <b>Black hits back.</b> After your move, Black moves too — hunting you and setting up forks and
-            skewers. Get captured and your run ends early.
+            skewers. Get captured and you lose 9 points and respawn somewhere random.
           </li>
         </ol>
 
@@ -273,15 +302,13 @@ export default function App() {
     return (
       <main className="app menu">
         <div className="over-emoji">
-          {newBest ? '🏆' : death?.reason === 'time' ? '⏰' : death?.reason === 'trapped' ? '🪤' : '💥'}
+          {newBest ? '🏆' : '⏰'}
         </div>
-        <h1>{newBest ? 'New best!' : death?.reason === 'time' ? "Time's up!" : 'Game over'}</h1>
+        <h1>{newBest ? 'New best!' : "Time's up!"}</h1>
         <p className="tagline">
-          {death?.reason === 'time'
-            ? 'You survived the full 2 minutes.'
-            : death?.reason === 'trapped'
-              ? 'Boxed in with nowhere to go.'
-              : `Your ${PIECE_NAMES[hero.type]} was taken by a ${PIECE_NAMES[death?.by ?? 'P']} with ${fmt(timeLeft)} left.`}
+          {timesTaken === 0
+            ? 'Flawless — never got captured!'
+            : `Captured ${timesTaken} time${timesTaken === 1 ? '' : 's'}.`}
         </p>
         <div className="stats">
           <div>
@@ -342,7 +369,9 @@ export default function App() {
           <small> pts</small>
           <div className="floaters">
             {floaters.map((f) => (
-              <span key={f.id}>{f.text}</span>
+              <span key={f.id} className={f.text.startsWith('-') ? 'neg' : ''}>
+                {f.text}
+              </span>
             ))}
           </div>
         </div>
@@ -350,7 +379,7 @@ export default function App() {
       </section>
 
       <section className="status">
-        <div className={`turn ${blackToMove ? 'black' : ''}`}>{blackToMove ? 'Black is thinking…' : 'Your move'}</div>
+        <div className={`turn ${blackToMove ? 'black' : ''}`}>{heroDown ? 'Respawning…' : blackToMove ? 'Black is thinking…' : 'Your move'}</div>
         {inCheck && (
           <div className="check">
             ⚠ Under attack by {threats.map((t) => GLYPHS[t.type]).join(' ')}
@@ -361,7 +390,8 @@ export default function App() {
       <div className="board-wrap">
         <Board
           hero={hero}
-          heroDead={!!death}
+          heroDead={heroDown}
+          heroKey={heroKey}
           enemies={enemies}
           moves={moves}
           showDanger={showDanger}
@@ -369,7 +399,7 @@ export default function App() {
           spawned={spawned}
           poof={poof}
           onMove={onMove}
-          disabled={blackToMove || !!death}
+          disabled={blackToMove || !!death || heroDown}
         />
         {banner && (
           <div key={banner.key} className={`banner ${banner.kind}`}>

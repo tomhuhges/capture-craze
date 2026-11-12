@@ -331,30 +331,18 @@ export default function App() {
         }
       >
         <div className="over-emoji">{newBest ? '🏆' : '⏰'}</div>
-        <p className="tagline">
-          {timesTaken === 0
-            ? 'Flawless — never got captured!'
-            : `Captured ${timesTaken} time${timesTaken === 1 ? '' : 's'}.`}
-        </p>
         <div className="final-score">
           <label>Score</label>
           <span className={score < 0 ? 'negative' : ''}>{fmtScore(score)}</span>
           <small>Best {best}</small>
         </div>
-        <div className="stats">
-          <div>
-            <span className={score + pointsLost ? 'pos' : ''}>{score + pointsLost ? `+${score + pointsLost}` : 0}</span>
-            <label>Points captured</label>
-          </div>
-          <div>
-            <span>{captures}</span>
-            <label>Pieces captured</label>
-          </div>
-          <div>
-            <span className={pointsLost ? 'neg' : ''}>{pointsLost ? `−${pointsLost}` : 0}</span>
-            <label>Points lost</label>
-          </div>
-        </div>
+        <HeadToHead
+          rows={[
+            { label: 'Captures', you: captures, black: timesTaken },
+            { label: 'Points', you: score + pointsLost, black: pointsLost },
+          ]}
+        />
+        {timesTaken === 0 && <p className="tagline">Flawless — Black never caught you!</p>}
       </Shell>
     )
   }
@@ -473,5 +461,42 @@ function Shell({
       </div>
       <footer className="app-footer">{footer}</footer>
     </main>
+  )
+}
+
+/** "You vs Black" scoreboard with a tug-of-war bar per stat. */
+function HeadToHead({ rows }: { rows: { label: string; you: number; black: number }[] }) {
+  return (
+    <section className="h2h" aria-label="You versus Black">
+      <div className="h2h-sides">
+        <div className="side you">
+          <PieceIcon type="Q" color="w" decorative />
+          You
+        </div>
+        <span className="vs">vs</span>
+        <div className="side black">
+          Black
+          <PieceIcon type="K" color="b" decorative />
+        </div>
+      </div>
+      {rows.map(({ label, you, black }) => {
+        const total = you + black
+        const youPct = total ? (you / total) * 100 : 50
+        const winner = you > black ? 'you' : black > you ? 'black' : 'tie'
+        return (
+          <div className={`h2h-row ${winner}`} key={label}>
+            <div className="h2h-nums">
+              <span className="you">{you}</span>
+              <label>{label}</label>
+              <span className="black">{black}</span>
+            </div>
+            <div className={`h2h-bar ${total ? '' : 'empty'}`}>
+              <div className="you" style={{ width: `${youPct}%` }} />
+              <div className="black" style={{ width: `${100 - youPct}%` }} />
+            </div>
+          </div>
+        )
+      })}
+    </section>
   )
 }

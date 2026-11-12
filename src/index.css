@@ -360,31 +360,75 @@ h1 em {
   animation: bob 2s ease-in-out infinite;
 }
 
+.final-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 22px;
+  padding: 14px 32px 12px;
+  margin-top: 8px;
+  box-shadow: 0 5px 0 var(--line);
+}
+
+.final-score label {
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.final-score span {
+  font-size: 56px;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--primary);
+}
+
+.final-score small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .stats {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   margin: 16px 0 20px;
+  width: 100%;
+  max-width: 400px;
 }
 
 .stats div {
+  flex: 1;
   background: var(--card);
   border: 2px solid var(--line);
   border-radius: 18px;
-  padding: 12px 18px;
-  min-width: 92px;
+  padding: 12px 8px;
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .stats span {
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 900;
+}
+
+.stats span.pos {
+  color: var(--good);
+}
+
+.stats span.neg {
+  color: var(--bad);
 }
 
 .stats label {
   color: var(--muted);
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.2;
   text-transform: uppercase;
 }
 

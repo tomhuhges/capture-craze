@@ -70,6 +70,7 @@ export default function App() {
   const [heroDown, setHeroDown] = useState(false) // captured, waiting to respawn
   const [heroKey, setHeroKey] = useState(0)
   const [timesTaken, setTimesTaken] = useState(0)
+  const [pointsLost, setPointsLost] = useState(0)
   const [timeLeft, setTimeLeft] = useState(GAME_SECONDS)
   const endsAt = useRef(0)
   const scoreRef = useRef(0)
@@ -124,6 +125,7 @@ export default function App() {
     setHeroDown(false)
     setHeroKey(0)
     setTimesTaken(0)
+    setPointsLost(0)
     setNewBest(false)
     setTimeLeft(GAME_SECONDS)
     endsAt.current = Date.now() + GAME_SECONDS * 1000
@@ -143,6 +145,7 @@ export default function App() {
     setScore(scoreBefore - lost)
     setStreak(0)
     setTimesTaken((n) => n + 1)
+    setPointsLost((n) => n + lost)
     setHeroDown(true)
     if (lost > 0) floatText(`-${lost}`)
     flash(`${reason === 'captured' ? 'Captured!' : 'Trapped!'} −${CAPTURE_PENALTY}`, 'bad')
@@ -310,18 +313,23 @@ export default function App() {
             ? 'Flawless — never got captured!'
             : `Captured ${timesTaken} time${timesTaken === 1 ? '' : 's'}.`}
         </p>
+        <div className="final-score">
+          <label>Score</label>
+          <span>{score}</span>
+          <small>Best {best}</small>
+        </div>
         <div className="stats">
           <div>
-            <span>{score}</span>
-            <label>Points</label>
+            <span className="pos">+{score + pointsLost}</span>
+            <label>Points captured</label>
           </div>
           <div>
             <span>{captures}</span>
-            <label>Captures</label>
+            <label>Pieces captured</label>
           </div>
           <div>
-            <span>{best}</span>
-            <label>Best</label>
+            <span className="neg">−{pointsLost}</span>
+            <label>Points lost</label>
           </div>
         </div>
         <div className="menu-buttons">

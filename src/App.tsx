@@ -204,7 +204,10 @@ export default function App() {
       newCaptures = captures + 1
       newStreak = streak + 1
       floatText(`+${points}`)
-      setPoof({ sq: to, type: victim.type, key: ++keyRef.current })
+      const poofKey = ++keyRef.current
+      setPoof({ sq: to, type: victim.type, key: poofKey })
+      // Drop the ghost once its animation is done (only if no newer poof replaced it).
+      later(() => setPoof((p) => (p?.key === poofKey ? null : p)), 450)
       sfx.capture(newStreak)
       if (newStreak >= 2) flash(CHEERS[Math.min(newStreak - 2, CHEERS.length - 1)], 'good')
 

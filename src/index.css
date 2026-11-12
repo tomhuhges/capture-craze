@@ -603,6 +603,16 @@ h1 em {
   animation: poof 0.6s ease-out forwards;
 }
 
+/* A captured piece bursts and fades out (the element is also removed from
+   the DOM shortly after, so it can never linger). */
+.poof {
+  z-index: 3;
+}
+
+.poof span {
+  animation: poof 0.4s ease-out forwards;
+}
+
 .legend {
   text-align: center;
   color: var(--muted);

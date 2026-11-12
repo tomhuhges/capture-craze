@@ -1,5 +1,6 @@
 import { useRef, useState, type CSSProperties, type PointerEvent } from 'react'
-import { GLYPHS, SIZE, type Enemy, type Hero, type PieceType } from '../game/chess'
+import { SIZE, type Enemy, type Hero, type PieceType } from '../game/chess'
+import { PieceIcon } from './PieceIcon'
 
 export interface MoveMark {
   sq: number
@@ -113,15 +114,17 @@ export function Board({ hero, heroDead, heroKey, enemies, moves, showDanger, las
       <div className="layer">
         {enemies.map((e) => (
           <div key={e.id} className={`piece black ${spawned.has(e.id) ? 'spawn' : ''}`} style={at(e.sq)}>
-            <span key={e.type} className={`t-${e.type}`}>
-              {GLYPHS[e.type]}
+            <span key={e.type}>
+              <PieceIcon type={e.type} color="b" />
             </span>
           </div>
         ))}
 
         {poof && (
           <div key={poof.key} className="piece black poof" style={at(poof.sq)}>
-            <span className={`t-${poof.type}`}>{GLYPHS[poof.type]}</span>
+            <span>
+              <PieceIcon type={poof.type} color="b" decorative />
+            </span>
           </div>
         )}
 
@@ -134,7 +137,9 @@ export function Board({ hero, heroDead, heroKey, enemies, moves, showDanger, las
           onPointerUp={onPointerUp}
           onPointerCancel={() => setDrag(null)}
         >
-          <span>{GLYPHS[hero.type]}</span>
+          <span>
+            <PieceIcon type={hero.type} color="w" />
+          </span>
         </div>
       </div>
     </div>

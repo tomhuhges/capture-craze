@@ -20,3 +20,6 @@ npm run build
 ```
 
 Game rules, spawning and Black's AI live in `src/game/chess.ts`. Pushes to this branch or `main` deploy to GitHub Pages via `.github/workflows/deploy.yml`.
+
+## Credits
+Chess pieces: the "Cburnett" SVG set by Colin M.L. Burnett (via [Lichess](https://github.com/lichess-org/lila)), used under the BSD license. See [`src/assets/pieces/LICENSE.md`](src/assets/pieces/LICENSE.md).

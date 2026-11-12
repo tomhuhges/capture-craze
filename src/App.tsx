@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Board, type MoveMark } from './components/Board'
+import { PieceIcon } from './components/PieceIcon'
 import {
-  GLYPHS,
   PIECE_VALUES,
   CAPTURE_PENALTY,
   applyEnemyMove,
@@ -269,7 +269,9 @@ export default function App() {
         className="menu"
         header={
           <div className="logo">
-            <span className="logo-piece">♞</span>
+            <span className="logo-piece">
+              <PieceIcon type="N" color="w" decorative />
+            </span>
             <h1>
               Capture <em>Craze</em>
             </h1>
@@ -286,14 +288,14 @@ export default function App() {
       >
         <ul className="rules">
           <li>
-            <b>{GLYPHS.Q} You're a queen.</b> 2 minutes.
+            <PieceIcon type="Q" color="w" className="inline" decorative /> <b>You're a queen.</b> 2 minutes.
           </li>
           <li>
             <b>Capture for points:</b>{' '}
             <span className="values">
               {(['P', 'N', 'B', 'R', 'Q'] as const).map((t) => (
-                <span key={t}>
-                  {GLYPHS[t]}
+                <span key={t} title={`${PIECE_VALUES[t]} point${PIECE_VALUES[t] === 1 ? '' : 's'}`}>
+                  <PieceIcon type={t} color="b" className="inline" />
                   {PIECE_VALUES[t]}
                 </span>
               ))}
@@ -371,7 +373,7 @@ export default function App() {
           <div className={`timebar ${timeLeft <= 10 ? 'low' : ''}`}>
             <div className="fill" style={{ width: `${(timeLeft / GAME_SECONDS) * 100}%` }} />
             <span>
-              <span className="mini">{GLYPHS[hero.type]}</span> {fmt(timeLeft)}
+              <PieceIcon type={hero.type} color="w" className="mini" decorative /> {fmt(timeLeft)}
             </span>
           </div>
           <button className={`icon-btn ${showDanger ? 'active' : ''}`} onClick={toggleDanger} title="Show danger squares">
@@ -413,7 +415,14 @@ export default function App() {
         <div className={`turn ${blackToMove ? 'black' : ''}`}>
           {heroDown ? 'Respawning…' : blackToMove ? 'Black is thinking…' : 'Your move'}
         </div>
-        {inCheck && <div className="check">⚠ Under attack by {threats.map((t) => GLYPHS[t.type]).join(' ')}</div>}
+        {inCheck && (
+          <div className="check">
+            ⚠ Under attack by{' '}
+            {threats.map((t) => (
+              <PieceIcon key={t.id} type={t.type} color="b" className="inline" />
+            ))}
+          </div>
+        )}
       </section>
 
       <div className="board-wrap">

@@ -31,18 +31,6 @@ export const PIECE_VALUES: Record<PieceType, number> = {
   K: 0,
 }
 
-// U+FE0E forces text (not emoji) presentation. ♟ in particular has an emoji
-// form that iOS/Android render as a big glossy pawn.
-const TEXT = '\uFE0E'
-export const GLYPHS: Record<PieceType, string> = {
-  K: '♚' + TEXT,
-  Q: '♛' + TEXT,
-  R: '♜' + TEXT,
-  B: '♝' + TEXT,
-  N: '♞' + TEXT,
-  P: '♟' + TEXT,
-}
-
 export interface Hero {
   sq: number
   type: PieceType

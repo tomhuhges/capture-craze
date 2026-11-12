@@ -122,11 +122,26 @@ button {
 }
 
 .logo-piece {
-  font-size: 88px;
-  line-height: 1;
-  color: var(--primary);
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  background: var(--primary);
+  border-radius: 28px;
+  box-shadow: 0 6px 0 var(--primary-dark);
   animation: bob 2.4s ease-in-out infinite;
-  text-shadow: 0 6px 0 var(--primary-dark);
+}
+
+.logo-piece .piece-icon {
+  width: 78%;
+  height: 78%;
+}
+
+/* Small piece icons that sit inside a line of text. */
+.piece-icon.inline {
+  width: 1.35em;
+  height: 1.35em;
+  vertical-align: -0.35em;
 }
 
 h1 {
@@ -162,8 +177,17 @@ h1 em {
 
 .rules .values {
   display: inline-flex;
-  gap: 8px;
+  gap: 6px;
   white-space: nowrap;
+}
+
+.rules .values > span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.rules .values .piece-icon.inline {
+  margin-right: -1px;
 }
 
 .rules li + li {
@@ -308,10 +332,6 @@ h1 em {
   font-size: 17px;
 }
 
-.status .mini {
-  font-size: 22px;
-}
-
 .status .left {
   color: var(--muted);
   font-weight: 800;
@@ -364,31 +384,32 @@ h1 em {
 }
 
 .piece span {
-  font-size: 78cqh;
-  line-height: 1;
-  font-family: 'Segoe UI Symbol', 'DejaVu Sans', 'Noto Sans Symbols 2', 'Apple Symbols', sans-serif;
-  font-variant-emoji: text;
+  display: block;
+  width: 92%;
+  height: 92%;
 }
 
-/* Pawns are the smallest piece — keep them visibly shorter than bishops. */
-.piece span.t-P {
-  font-size: 62cqh;
+.piece .piece-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
-.piece.black span {
-  color: #2d2a3e;
-  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.15);
+.piece.black .piece-icon {
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.18));
 }
 
 .piece.hero {
   z-index: 2;
 }
 
-.piece.hero span {
-  color: #fff;
-  -webkit-text-stroke: 2px var(--primary-dark);
-  paint-order: stroke fill;
-  text-shadow: 0 4px 0 var(--primary-dark);
+/* The player's queen gets a warm glow so she stands out from Black's pieces. */
+.piece.hero .piece-icon {
+  filter: drop-shadow(0 0 1.5px var(--primary)) drop-shadow(0 0 1.5px var(--primary))
+    drop-shadow(0 3px 0 var(--primary-dark));
 }
 
 .banner {
@@ -525,8 +546,8 @@ h1 em {
 }
 
 .timebar .mini {
-  font-size: 18px;
-  color: var(--ink);
+  width: 20px;
+  height: 20px;
 }
 
 .timebar.low .fill {
@@ -584,8 +605,8 @@ h1 em {
 }
 
 .mini {
-  font-size: 24px;
-  color: var(--primary);
+  width: 24px;
+  height: 24px;
 }
 
 .icon-btn.active {
@@ -775,7 +796,9 @@ h1 em {
 /* Short phones (e.g. iPhone SE): shrink the start-page logo so it fits without scrolling. */
 @media (max-height: 620px) {
   .logo-piece {
-    font-size: 60px;
+    width: 68px;
+    height: 68px;
+    border-radius: 20px;
   }
 
   .over-emoji {
